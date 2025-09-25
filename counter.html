@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Counter</title>
+</head>
+<body>
+  <h1 id="count-text">count : 0</h1>
+  <button id="btn-inc">Inc(+)</button>
+  <button id="btn-dec">Dec(-)</button>
+  <button id="btn-reset">Reset(0)</button>
+
+  <script>
+    const countText = document.getElementById("count-text");
+    const btnInc = document.getElementById("btn-inc");
+    const btnDec = document.getElementById("btn-dec");
+    const btnReset = document.getElementById("btn-reset");
+
+    let count = 0;
+    const render = () => (countText.innerText = "count : " + count);
+
+    btnInc.addEventListener("click", () => { count += 1; render(); });
+    btnDec.addEventListener("click", () => { count = Math.max(0, count - 1); render(); });
+    btnReset.addEventListener("click", () => { count = 0; render(); });
+  </script>
+</body>
+</html>
