@@ -1,40 +1,33 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Counter</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple Calculator</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 24px; }
-    h1 { margin-bottom: 16px; }
-    button { margin-right: 8px; padding: 6px 12px; cursor: pointer; }
+    body{font-family:sans-serif;padding:24px}
+    input,select{padding:6px}
+    button{padding:6px 12px;margin-left:8px}
   </style>
 </head>
 <body>
-  <h1 id="count-text">count : 0</h1>
-  <button id="btn-inc">Inc(+)</button>
-  <button id="btn-dec">Dec(-)</button>
-  <button id="btn-reset">Reset(0)</button>
+  <input id="inp-num1" type="number" />
+  <select id="op">
+    <option value="+">+</option>
+    <option value="-">-</option>
+  </select>
+  <input id="inp-num2" type="number" /> =
+  <input id="inp-result" type="number" readonly />
+  <div><button id="btn-submit">submit</button></div>
 
   <script>
     const $ = id => document.getElementById(id);
-    const countText = $("count-text");
-    const btnInc    = $("btn-inc");
-    const btnDec    = $("btn-dec");
-    const btnReset  = $("btn-reset");
+    const n1 = $("inp-num1"), n2 = $("inp-num2"), op = $("op"), out = $("inp-result"), btn = $("btn-submit");
 
-    let count = 0;
-    const render = () => countText.innerText = "count : " + count;
-
-    btnInc.addEventListener("click", () => { count += 1; render(); });
-    btnDec.addEventListener("click", () => { count = Math.max(0, count - 1); render(); }); // 음수 방지
-    btnReset.addEventListener("click", () => { count = 0; render(); });
-
-    // 키보드 지원: ↑ 증가, ↓ 감소, 0 초기화
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowUp") { count += 1; render(); }
-      if (e.key === "ArrowDown") { count = Math.max(0, count - 1); render(); }
-      if (e.key === "0") { count = 0; render(); }
+    btn.addEventListener("click", () => {
+      const a = Number(n1.value) || 0;
+      const b = Number(n2.value) || 0;
+      out.value = op.value === "+" ? a + b : a - b;
     });
   </script>
 </body>
