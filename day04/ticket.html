@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>기차표 예약</title>
+
+<h1>기차표 예약</h1>
+
+<h2>출발역 (radio)</h2>
+<div id="dep-group">
+  <label><input type="radio" name="dep" value="서울" checked> 서울</label>
+  <label><input type="radio" name="dep" value="천안"> 천안</label>
+  <label><input type="radio" name="dep" value="세종"> 세종</label>
+  <label><input type="radio" name="dep" value="익산"> 익산</label>
+</div>
+
+<h2>도착역 (select)</h2>
+<select id="arr">
+  <option value="광주">광주</option>
+  <option value="목포">목포</option>
+  <option value="여수">여수</option>
+</select>
+
+<p><button id="btn-submit">제출</button></p>
+<p>결과 : <span id="ticket-result"></span></p>
+
+<script>
+  const depRadios = document.querySelectorAll('input[name="dep"]');
+  const arrSelect = document.getElementById('arr');
+  const out = document.getElementById('ticket-result');
+
+  document.getElementById('btn-submit').addEventListener('click', () => {
+    // 선택된 출발역 찾기
+    let dep = '';
+    depRadios.forEach(r => { if (r.checked) dep = r.value; });
+
+    const arr = arrSelect.value;
+
+    if (dep === arr) {
+      out.textContent = '출발역과 도착역이 같습니다. 다시 선택하세요.';
+    } else {
+      out.textContent = `${dep} → ${arr} 예매 요청`;
+    }
+  });
+</script>
