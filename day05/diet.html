@@ -9,7 +9,7 @@
   body{font-family:sans-serif;line-height:1.6;padding:24px;max-width:960px;margin:auto}
   fieldset{border:1px solid #ddd;border-radius:10px;padding:16px;margin:var(--gap) 0}
   label{display:inline-flex;align-items:center;gap:8px;margin-right:12px}
-  input,button{padding:8px 10px}
+  input,button,select{padding:8px 10px}
   input[type="number"]{width:120px}
   table{border-collapse:collapse;width:100%;margin-top:var(--gap)}
   th,td{border:1px solid #e5e5e5;padding:10px;text-align:left}
@@ -18,12 +18,46 @@
   .danger{color:#b00020}
   .muted{color:#666}
   .actions{display:flex;gap:10px;margin-top:var(--gap)}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #ddd;margin-right:8px}
 </style>
 </head>
 <body>
 <h1>식단 입력</h1>
 
-<!-- 목표 칼로리 -->
+<!-- 👉 권장 칼로리 계산 (키/몸무게 + 선택: 성별/나이/활동량) -->
+<fieldset>
+  <legend>권장 칼로리 계산</legend>
+  <div class="row">
+    <label>키(cm) <input id="height" type="number" placeholder="예: 173" min="50" max="250" /></label>
+    <label>몸무게(kg) <input id="weight" type="number" placeholder="예: 70" min="20" max="300" /></label>
+
+    <label>성별
+      <select id="sex">
+        <option value="male" selected>남성</option>
+        <option value="female">여성</option>
+      </select>
+    </label>
+
+    <label>나이
+      <input id="age" type="number" value="21" min="10" max="99" />
+    </label>
+
+    <label>활동량
+      <select id="activity">
+        <option value="1.2">매우 낮음(1.2)</option>
+        <option value="1.375" selected>가벼움(1.375)</option>
+        <option value="1.55">보통(1.55)</option>
+        <option value="1.725">높음(1.725)</option>
+        <option value="1.9">매우 높음(1.9)</option>
+      </select>
+    </label>
+
+    <button id="calcGoal">권장 칼로리 계산</button>
+  </div>
+  <div id="goalInfo" class="muted" style="margin-top:6px;"></div>
+</fieldset>
+
+<!-- 하루 목표 칼로리(자동 채움 대상) -->
 <fieldset>
   <legend>하루 목표 (kcal)</legend>
   <div class="row">
@@ -66,9 +100,39 @@ const $ = s => document.querySelector(s);
 const tbody = $('#tbl tbody');
 const totalEl = $('#total');
 const err = $('#err');
-
+const goalInfo = $('#goalInfo');
 let items = []; // {name, kcal, qty}
 
+/* ===== 권장 칼로리 계산 (Mifflin-St Jeor + 활동계수) ===== */
+function calcRecommendedGoal(){
+  const h = Number($('#height').value);
+  const w = Number($('#weight').value);
+  const age = Number($('#age').value || 21);
+  const sex = $('#sex').value;               // 'male' | 'female'
+  const af  = Number($('#activity').value);  // 활동계수
+
+  if(!h || !w){ goalInfo.textContent = '키와 몸무게를 입력하세요.'; return; }
+
+  // BMR
+  let bmr;
+  if(sex === 'male'){
+    bmr = 10*w + 6.25*h - 5*age + 5;
+  }else{
+    bmr = 10*w + 6.25*h - 5*age - 161;
+  }
+  const tdee = Math.round(bmr * af);
+
+  // 하루 목표에 자동 반영
+  $('#goal').value = tdee;
+
+  goalInfo.innerHTML =
+    `<span class="pill">BMR ≈ ${Math.round(bmr)} kcal</span>` +
+    `<span class="pill">활동계수 × ${af}</span>` +
+    `<span class="pill"><strong>권장 섭취 ≈ ${tdee} kcal</strong></span>`;
+}
+$('#calcGoal').addEventListener('click', calcRecommendedGoal);
+
+/* ===== 식단 목록 렌더링 ===== */
 function render(){
   tbody.innerHTML = '';
   let total = 0;
@@ -106,7 +170,6 @@ function addItem(){
   $('#qty').value = 1;
   render();
 }
-
 $('#add').addEventListener('click', addItem);
 
 // 수량 변경/삭제 위임
