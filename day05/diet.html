@@ -13,7 +13,7 @@
   input[type="number"]{width:120px}
   table{border-collapse:collapse;width:100%;margin-top:var(--gap)}
   th,td{border:1px solid #e5e5e5;padding:10px;text-align:left}
-  td.right,th.right{text-align:right}
+  th.right,td.right{text-align:right}
   .row{display:flex;gap:var(--gap);flex-wrap:wrap;align-items:center}
   .danger{color:#b00020}
   .muted{color:#666}
@@ -24,46 +24,14 @@
 <body>
 <h1>식단 입력</h1>
 
-<!-- 👉 권장 칼로리 계산 (키/몸무게 + 선택: 성별/나이/활동량) -->
-<fieldset>
-  <legend>권장 칼로리 계산</legend>
-  <div class="row">
-    <label>키(cm) <input id="height" type="number" placeholder="예: 173" min="50" max="250" /></label>
-    <label>몸무게(kg) <input id="weight" type="number" placeholder="예: 70" min="20" max="300" /></label>
-
-    <label>성별
-      <select id="sex">
-        <option value="male" selected>남성</option>
-        <option value="female">여성</option>
-      </select>
-    </label>
-
-    <label>나이
-      <input id="age" type="number" value="21" min="10" max="99" />
-    </label>
-
-    <label>활동량
-      <select id="activity">
-        <option value="1.2">매우 낮음(1.2)</option>
-        <option value="1.375" selected>가벼움(1.375)</option>
-        <option value="1.55">보통(1.55)</option>
-        <option value="1.725">높음(1.725)</option>
-        <option value="1.9">매우 높음(1.9)</option>
-      </select>
-    </label>
-
-    <button id="calcGoal">권장 칼로리 계산</button>
-  </div>
-  <div id="goalInfo" class="muted" style="margin-top:6px;"></div>
-</fieldset>
-
-<!-- 하루 목표 칼로리(자동 채움 대상) -->
+<!-- 하루 목표 (자동 갱신 옵션 추가) -->
 <fieldset>
   <legend>하루 목표 (kcal)</legend>
   <div class="row">
     <label>목표: <input id="goal" type="number" value="2000" min="0" step="10" /></label>
-    <span class="muted">예) 173cm/70kg 가벼운 활동이면 약 2300kcal 근처</span>
+    <label><input type="checkbox" id="autoPreset" checked /> 목표 변경 시 예시 자동 갱신</label>
   </div>
+  <div class="muted">※ 직접 항목을 수정/추가하면 자동 갱신이 꺼집니다.</div>
 </fieldset>
 
 <!-- 항목 추가 -->
@@ -100,39 +68,55 @@ const $ = s => document.querySelector(s);
 const tbody = $('#tbl tbody');
 const totalEl = $('#total');
 const err = $('#err');
-const goalInfo = $('#goalInfo');
+const goalInput = $('#goal');
+const autoPreset = $('#autoPreset');
+
 let items = []; // {name, kcal, qty}
 
-/* ===== 권장 칼로리 계산 (Mifflin-St Jeor + 활동계수) ===== */
-function calcRecommendedGoal(){
-  const h = Number($('#height').value);
-  const w = Number($('#weight').value);
-  const age = Number($('#age').value || 21);
-  const sex = $('#sex').value;               // 'male' | 'female'
-  const af  = Number($('#activity').value);  // 활동계수
+/* ===== 목표 칼로리에 맞춘 예시 자동 생성 ===== */
+function buildPresetForGoal(goal){
+  // 기본 식단(아침/점심/저녁)
+  const core = [
+    {name:'오트밀', kcal:300, qty:1},
+    {name:'우유', kcal:130, qty:1},
+    {name:'닭가슴살', kcal:165, qty:1},
+    {name:'밥', kcal:300, qty:1},
+    {name:'샐러드', kcal:120, qty:1},
+    {name:'연어', kcal:208, qty:1},
+    {name:'밥(저녁)', kcal:300, qty:1},
+  ];
+  // 채우기 옵션(큰 것부터)
+  const options = [
+    {name:'연어', kcal:208},
+    {name:'닭가슴살', kcal:165},
+    {name:'아몬드', kcal:150},
+    {name:'요거트', kcal:100},
+    {name:'바나나', kcal:89},
+    {name:'삶은 계란', kcal:78},
+  ];
 
-  if(!h || !w){ goalInfo.textContent = '키와 몸무게를 입력하세요.'; return; }
+  let total = core.reduce((s, it)=> s + it.kcal*it.qty, 0);
+  const list = core.map(x => ({...x}));
 
-  // BMR
-  let bmr;
-  if(sex === 'male'){
-    bmr = 10*w + 6.25*h - 5*age + 5;
-  }else{
-    bmr = 10*w + 6.25*h - 5*age - 161;
+  if(goal < 800) goal = 800; // 너무 낮은 목표 방어
+  const upper = goal + 100;
+
+  let safety = 0;
+  while(total < goal - 60 && safety++ < 100){
+    const remain = goal - total;
+    let picked = null;
+    for(const opt of options){
+      if(total + opt.kcal <= upper && opt.kcal <= remain + 30){ picked = opt; break; }
+    }
+    if(!picked) picked = options[options.length-1];
+    const exist = list.find(it => it.name === picked.name && it.kcal === picked.kcal);
+    if(exist) exist.qty += 1; else list.push({name:picked.name, kcal:picked.kcal, qty:1});
+    total += picked.kcal;
   }
-  const tdee = Math.round(bmr * af);
-
-  // 하루 목표에 자동 반영
-  $('#goal').value = tdee;
-
-  goalInfo.innerHTML =
-    `<span class="pill">BMR ≈ ${Math.round(bmr)} kcal</span>` +
-    `<span class="pill">활동계수 × ${af}</span>` +
-    `<span class="pill"><strong>권장 섭취 ≈ ${tdee} kcal</strong></span>`;
+  return list;
 }
-$('#calcGoal').addEventListener('click', calcRecommendedGoal);
 
-/* ===== 식단 목록 렌더링 ===== */
+/* ===== 렌더 ===== */
 function render(){
   tbody.innerHTML = '';
   let total = 0;
@@ -155,6 +139,7 @@ function render(){
   totalEl.textContent = total.toLocaleString();
 }
 
+/* ===== 수동 추가 ===== */
 function addItem(){
   err.textContent = '';
   const name = $('#name').value.trim();
@@ -168,53 +153,58 @@ function addItem(){
   $('#name').value = '';
   $('#kcal').value = '';
   $('#qty').value = 1;
+  autoPreset.checked = false; // 수동 추가 시 자동 갱신 끄기
   render();
 }
 $('#add').addEventListener('click', addItem);
 
-// 수량 변경/삭제 위임
+/* ===== 위임: 수량 변경/삭제 ===== */
 tbody.addEventListener('input', (e) => {
   if(e.target.classList.contains('qty')){
     const i = Number(e.target.dataset.i);
     const v = Math.max(1, Number(e.target.value)||1);
-    items[i].qty = v; render();
+    items[i].qty = v;
+    autoPreset.checked = false; // 수동 수정 시 자동 갱신 끄기
+    render();
   }
 });
 tbody.addEventListener('click', (e) => {
   if(e.target.classList.contains('del')){
     const i = Number(e.target.dataset.i);
-    items.splice(i,1); render();
+    items.splice(i,1);
+    autoPreset.checked = false; // 수동 삭제 시 자동 갱신 끄기
+    render();
   }
 });
 
-// 예시 프리셋
+/* ===== 예시 불러오기 버튼 ===== */
 $('#preset').addEventListener('click', () => {
-  items = [
-    {name:'오트밀', kcal:300, qty:1},
-    {name:'우유', kcal:130, qty:1},
-    {name:'바나나', kcal:89, qty:1},
-    {name:'닭가슴살', kcal:165, qty:2},
-    {name:'밥', kcal:300, qty:2},
-    {name:'김치', kcal:30, qty:1},
-    {name:'요거트', kcal:100, qty:1},
-    {name:'아몬드', kcal:150, qty:1},
-    {name:'연어', kcal:208, qty:2},
-    {name:'샐러드', kcal:120, qty:1},
-    {name:'삶은 계란', kcal:78, qty:1},
-  ];
+  const goal = Math.max(0, Number(goalInput.value)||0);
+  items = buildPresetForGoal(goal);
+  autoPreset.checked = true; // 버튼으로 불러오면 자동 갱신 활성화
   render();
 });
 
-// 결과 페이지로 이동
+/* ===== 목표가 바뀌면 자동 갱신 ===== */
+function onGoalChange(){
+  if(!autoPreset.checked) return;
+  const goal = Math.max(0, Number(goalInput.value)||0);
+  items = buildPresetForGoal(goal);
+  render();
+}
+goalInput.addEventListener('input', onGoalChange);
+goalInput.addEventListener('change', onGoalChange);
+
+/* ===== 결과 페이지로 이동 ===== */
 $('#finish').addEventListener('click', () => {
-  const goal = Math.max(0, Number($('#goal').value)||0);
+  const goal = Math.max(0, Number(goalInput.value)||0);
   const q = new URLSearchParams();
   q.set('goal', String(goal));
   q.set('data', encodeURIComponent(JSON.stringify(items)));
   location.href = './result.html?' + q.toString();
 });
 
-// 비우기
+/* ===== 비우기 ===== */
 $('#clear').addEventListener('click', () => { items = []; render(); });
 
 render();
