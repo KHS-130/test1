@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>식단 입력</title>
+<style>
+  :root{--gap:12px}
+  body{font-family:sans-serif;line-height:1.6;padding:24px;max-width:960px;margin:auto}
+  fieldset{border:1px solid #ddd;border-radius:10px;padding:16px;margin:var(--gap) 0}
+  label{display:inline-flex;align-items:center;gap:8px;margin-right:12px}
+  input,button{padding:8px 10px}
+  input[type="number"]{width:120px}
+  table{border-collapse:collapse;width:100%;margin-top:var(--gap)}
+  th,td{border:1px solid #e5e5e5;padding:10px;text-align:left}
+  td.right,th.right{text-align:right}
+  .row{display:flex;gap:var(--gap);flex-wrap:wrap;align-items:center}
+  .danger{color:#b00020}
+  .muted{color:#666}
+  .actions{display:flex;gap:10px;margin-top:var(--gap)}
+</style>
+</head>
+<body>
+<h1>식단 입력</h1>
+
+<!-- 목표 칼로리 -->
+<fieldset>
+  <legend>하루 목표 (kcal)</legend>
+  <div class="row">
+    <label>목표: <input id="goal" type="number" value="2000" min="0" step="10" /></label>
+    <span class="muted">예) 173cm/70kg 가벼운 활동이면 약 2300kcal 근처</span>
+  </div>
+</fieldset>
+
+<!-- 항목 추가 -->
+<fieldset>
+  <legend>항목 추가</legend>
+  <div class="row">
+    <label>음식명 <input id="name" placeholder="예: 바나나" /></label>
+    <label>1회 칼로리(kcal) <input id="kcal" type="number" placeholder="예: 89" /></label>
+    <label>개수 <input id="qty" type="number" value="1" min="1" /></label>
+    <button id="add">추가</button>
+    <button id="preset">예시 불러오기</button>
+  </div>
+  <div id="err" class="danger"></div>
+</fieldset>
+
+<!-- 목록/합계 -->
+<table id="tbl">
+  <thead>
+    <tr><th>#</th><th>음식</th><th class="right">1회(kcal)</th><th class="right">개수</th><th class="right">합계(kcal)</th><th>삭제</th></tr>
+  </thead>
+  <tbody></tbody>
+  <tfoot>
+    <tr><th colspan="4" class="right">총합</th><th id="total" class="right">0</th><th></th></tr>
+  </tfoot>
+</table>
+
+<div class="actions">
+  <button id="finish">결과 보기</button>
+  <button id="clear">모두 비우기</button>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const tbody = $('#tbl tbody');
+const totalEl = $('#total');
+const err = $('#err');
+
+let items = []; // {name, kcal, qty}
+
+function render(){
+  tbody.innerHTML = '';
+  let total = 0;
+  items.forEach((it, i) => {
+    const sum = it.kcal * it.qty;
+    total += sum;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${it.name}</td>
+      <td class="right">${it.kcal.toLocaleString()}</td>
+      <td class="right">
+         <input type="number" value="${it.qty}" min="1" style="width:70px" data-i="${i}" class="qty">
+      </td>
+      <td class="right">${sum.toLocaleString()}</td>
+      <td><button class="del" data-i="${i}">X</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  totalEl.textContent = total.toLocaleString();
+}
+
+function addItem(){
+  err.textContent = '';
+  const name = $('#name').value.trim();
+  const kcal = Number($('#kcal').value);
+  const qty  = Number($('#qty').value);
+  if(!name || !kcal || !qty || kcal<0 || qty<1){
+    err.textContent = '이름/칼로리/개수를 정확히 입력하세요.';
+    return;
+  }
+  items.push({name, kcal, qty});
+  $('#name').value = '';
+  $('#kcal').value = '';
+  $('#qty').value = 1;
+  render();
+}
+
+$('#add').addEventListener('click', addItem);
+
+// 수량 변경/삭제 위임
+tbody.addEventListener('input', (e) => {
+  if(e.target.classList.contains('qty')){
+    const i = Number(e.target.dataset.i);
+    const v = Math.max(1, Number(e.target.value)||1);
+    items[i].qty = v; render();
+  }
+});
+tbody.addEventListener('click', (e) => {
+  if(e.target.classList.contains('del')){
+    const i = Number(e.target.dataset.i);
+    items.splice(i,1); render();
+  }
+});
+
+// 예시 프리셋
+$('#preset').addEventListener('click', () => {
+  items = [
+    {name:'오트밀', kcal:300, qty:1},
+    {name:'우유', kcal:130, qty:1},
+    {name:'바나나', kcal:89, qty:1},
+    {name:'닭가슴살', kcal:165, qty:2},
+    {name:'밥', kcal:300, qty:2},
+    {name:'김치', kcal:30, qty:1},
+    {name:'요거트', kcal:100, qty:1},
+    {name:'아몬드', kcal:150, qty:1},
+    {name:'연어', kcal:208, qty:2},
+    {name:'샐러드', kcal:120, qty:1},
+    {name:'삶은 계란', kcal:78, qty:1},
+  ];
+  render();
+});
+
+// 결과 페이지로 이동
+$('#finish').addEventListener('click', () => {
+  const goal = Math.max(0, Number($('#goal').value)||0);
+  const q = new URLSearchParams();
+  q.set('goal', String(goal));
+  q.set('data', encodeURIComponent(JSON.stringify(items)));
+  location.href = './result.html?' + q.toString();
+});
+
+// 비우기
+$('#clear').addEventListener('click', () => { items = []; render(); });
+
+render();
+</script>
+</body>
+</html>

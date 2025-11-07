@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>결과</title>
+<style>
+  body{font-family:sans-serif;line-height:1.6;padding:24px;max-width:960px;margin:auto}
+  table{border-collapse:collapse;width:100%;margin:12px 0}
+  th,td{border:1px solid #e5e5e5;padding:10px;text-align:left}
+  th.right,td.right{text-align:right}
+  .card{border:1px solid #e5e5e5;border-radius:10px;padding:16px;margin-top:12px}
+  .button{display:inline-block;margin-top:12px;padding:8px 12px;border:1px solid #ddd;border-radius:8px;text-decoration:none}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid #ddd;margin-right:8px}
+  .muted{color:#666}
+  progress{width:100%;height:18px}
+</style>
+
+<h1>결과 요약</h1>
+<div id="summary" class="card">로딩 중…</div>
+<a class="button" href="./diet.html">다시 입력</a>
+
+<script>
+const p = new URLSearchParams(location.search);
+const goal = Math.max(0, Number(p.get('goal')||0));
+let items = [];
+try { items = JSON.parse(decodeURIComponent(p.get('data')||'[]')); }
+catch(e){ items = []; }
+
+function fmt(n){ return Number(n).toLocaleString(); }
+
+if(!items.length){
+  document.getElementById('summary').textContent = '항목이 없습니다. 뒤로 가서 입력하세요.';
+}else{
+  let rows = '';
+  let total = 0;
+  items.forEach((it,i)=>{
+    const sum = (Number(it.kcal)||0) * (Number(it.qty)||0);
+    total += sum;
+    rows += `<tr>
+      <td>${i+1}</td>
+      <td>${it.name}</td>
+      <td class="right">${fmt(it.kcal)}</td>
+      <td class="right">${fmt(it.qty)}</td>
+      <td class="right">${fmt(sum)}</td>
+    </tr>`;
+  });
+
+  // 목표 대비
+  const ratio = goal ? total/goal : 0;
+  const remain = goal ? Math.max(0, goal-total) : 0;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="pill">총합: <strong>${fmt(total)} kcal</strong></div>
+    <div class="pill">목표: <strong>${fmt(goal)} kcal</strong></div>
+    <div class="pill">달성률: <strong>${(ratio*100).toFixed(1)}%</strong></div>
+    ${goal ? `<div class="pill">남은 칼로리: <strong>${fmt(remain)} kcal</strong></div>` : ''}
+    <div class="muted">아래 표는 항목별 세부 내역입니다.</div>
+    <table>
+      <thead><tr><th>#</th><th>음식</th><th class="right">1회(kcal)</th><th class="right">개수</th><th class="right">합계(kcal)</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><th colspan="4" class="right">총합</th><th class="right">${fmt(total)}</th></tr></tfoot>
+    </table>
+    ${goal ? `
+      <div class="card">
+        <div><strong>목표 대비 진행률</strong> (${fmt(total)} / ${fmt(goal)} kcal)</div>
+        <progress value="${Math.min(total,goal)}" max="${goal}"></progress>
+      </div>
+    ` : ''}
+  `;
+}
+</script>
